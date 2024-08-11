@@ -1,0 +1,43 @@
+# Ultralytics YOLO 🚀, AGPL-3.0 license
+
+# Parameters
+nc: 10  # number of classes
+scales: # model compound scaling constants, i.e. 'model=yolov8n.yaml' will call yolov8.yaml with scale 'n'
+  # [depth, width, max_channels]
+  s: [0.33, 0.50, 1024]
+
+# DCHNet: backbone
+backbone:
+  # [from, repeats, module, args]
+  - [-1, 1, Conv, [64, 3, 2]]  # 0-P1/2
+  - [-1, 3, C2f, [64, True]]
+  - [-1, 1, LSKblock, []]
+  - [-1, 1, Conv, [128, 3, 2]]  # 3-P3/8
+  - [-1, 6, C2f, [128, True]]
+  - [-1, 1, LSKblock, []]
+  - [-1, 1, Conv, [256, 3, 2]]  # 6-P4/16
+  - [-1, 6, C2f, [256, True]]
+  - [-1, 1, Conv, [512, 3, 2]]  # 8-P5/32
+  - [-1, 3, C2f, [512, True]]
+  - [-1, 1, LSKblock, []]
+  - [-1, 1, LeakySPPF, [512, 5]]  # 11
+
+# DCHNet: neck and head
+head:
+  - [-1, 1, nn.Upsample, [None, 2, 'nearest']]
+  - [[-1, 7], 1, Concat, [1]]  # cat backbone P4
+  - [-1, 3, C2f, [256]]  # 14
+
+  - [-1, 1, nn.Upsample, [None, 2, 'nearest']]
+  - [[-1, 3, 5], 1, Concat, [1]]  # cat backbone P3
+  - [-1, 3, C2f, [128]]  # 17 (P3/8-small)
+
+  - [-1, 1, Conv, [128, 3, 2]]
+  - [[-1, 6, 14], 1, Concat, [1]]  # cat head P4
+  - [-1, 3, C2f, [256]]  # 20 (P4/16-medium)
+
+  - [-1, 1, Conv, [256, 3, 2]]
+  - [[-1, 11], 1, Concat, [1]]  # cat head P5
+  - [-1, 3, C2f, [512]]  # 23 (P5/32-large)
+
+  - [[17, 20, 23], 1, Detect, [nc]]  # Detect(P3, P4, P5)
